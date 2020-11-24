@@ -85,11 +85,8 @@ always @(posedge clk) begin
 			3'b000: strdata = {"REGS-", num2str(current_display_reg_addr[5:4]), num2str(current_display_reg_addr[3:0])};
 			3'b001: case (current_display_reg_addr[4:0])
 				// datapath debug signals, MUST be compatible with 'debug_data_signal' in 'datapath.v'
-				//0: strdata = "IF-ADDR";
 				0: strdata = "IF-INST";
-				//1: strdata = "IF-INST";
 				1: strdata = "ID-INST";
-				//2: strdata = "ID-ADDR";
 				2: strdata = "EX-INST";
 				3: strdata = "ME-INST";
 				4: strdata = "WB-INST";
@@ -97,21 +94,21 @@ always @(posedge clk) begin
 				6: strdata = "WB-ADDR";
 				7: strdata = "WB-DATA";
 				8: strdata = "CLK-CPU";
-				9: strdata = "STALL-1";
-				10: strdata = "STALL-2";
+				9: strdata = "FORW-RS";
+				10: strdata = "FORW-RT";
 				11: strdata = "STALL-D";
 				12: strdata = "STALL-C";
-				13: strdata = "ALU-AIN";
-				14: strdata = "ALU-BIN";
-				15: strdata = "ALU-OUT";
+				13: strdata = "-------";
+				14: strdata = "-------";
+				15: strdata = "-------";
 				16: strdata = "-------";
-				17: strdata = "FORWARD";
-				18: strdata = "MEMOPER";
-				19: strdata = "MEMADDR";
-				20: strdata = "MEMDATR";
-				21: strdata = "MEMDATW";
-				22: strdata = "WB-ADDR";
-				23: strdata = "WB-DATA";
+				17: strdata = "-------";
+				18: strdata = "-------";
+				19: strdata = "-------";
+				20: strdata = "-------";
+				21: strdata = "-------";
+				22: strdata = "-------";
+				23: strdata = "-------";
 				default: strdata = "RESERVE";
 			endcase
 			3'b010: strdata = {"CP0S-", num2str(current_display_reg_addr[5:4]), num2str(current_display_reg_addr[3:0])};
