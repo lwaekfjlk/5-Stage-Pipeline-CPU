@@ -2,13 +2,13 @@
 `define DEBUG
 
 module PCPU(
-            `ifdef DEBUG
+         `ifdef DEBUG
 			input wire [5:0] debug_addr,
 			output wire [31:0] debug_data,
 			`endif
-            input clk, 
+         input clk, 
 			input clk_cpu,
-            input rst
+         input rst
 			);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,25 +27,25 @@ module PCPU(
 	reg  [31:0] if_instruction = 0;
 	
 // IF-ID register
-	reg [31:0] id_PC_plus_4 = 0;
-	reg [31:0] id_instruction = 0;
+	reg [31:0]  id_PC_plus_4 = 0;
+	reg [31:0]  id_instruction = 0;
 	
 // ID stage
 	// controller wire (from up to down)
 	wire 			id_should_write_register;
-	wire [1:0]		id_should_ALUout_or_datamem_or_lui;
+	wire [1:0]	id_should_ALUout_or_datamem_or_lui;
 	
 	wire 			id_should_write_datamem;
 			
-	wire [3:0]		id_should_ALUcontrol;
+	wire [3:0]	id_should_ALUcontrol;
 	wire 			id_should__shamt_or_A;
 	wire 			id_should_imm_extend_or_B;
 	
 	wire 			id_whether_rs_equal_rt;
 	
-	wire [1:0]		id_should_rt_or_rd_or_31;
+	wire [1:0]	id_should_rt_or_rd_or_31;
 	wire 			id_should_sign_or_zero_extend_immediate;
-	wire [1:0]		id_should_j_or_branch_or_jr;
+	wire [1:0]	id_should_j_or_branch_or_jr;
 	wire 			id_should_jal;
 	
 	wire id_should_not_PC_plus_4;
@@ -57,8 +57,8 @@ module PCPU(
 	wire [1:0] id_should_forward_rt;
 	
 	// datapath wire
-    wire [4:0] id_rs;
-    wire [4:0] id_rt;
+   wire [4:0] id_rs;
+   wire [4:0] id_rt;
 	wire [4:0] id_rd;
 	wire [4:0] id_shamt;
 	
@@ -78,10 +78,10 @@ module PCPU(
 	
 	wire [4 :0] id_rt_or_rd_or_31;
 	
-	wire 		id_is_NOP;
+	wire 		  id_is_NOP;
 
 // ID-EXE register
-	reg 	   exe_should_write_register = 0;
+	reg 	     exe_should_write_register = 0;
 	reg [1 :0] exe_should_ALUout_or_datamem_or_lui = 0;
 	reg        exe_should_write_datamem = 0;
 	reg [3 :0] exe_should_ALUcontrol = 0;
@@ -100,14 +100,14 @@ module PCPU(
 	wire [31:0] exe_ALU_input_B;
 	wire [31:0] exe_imm_lui;
 	
-	wire 		exe_zero;
-	wire		exe_overflow;
+	wire 		   exe_zero;
+	wire		   exe_overflow;
 	wire [31:0] exe_ALUout;
 	
 	wire        exe_is_NOP;
 	
 // EXE-MEM register
-	reg 		mem_should_write_register = 0;
+	reg 		   mem_should_write_register = 0;
 	reg [1:0]   mem_should_ALUout_or_datamem_or_lui = 0;
 	reg			mem_should_write_datamem = 0;
 	
@@ -148,7 +148,7 @@ module PCPU(
 	`ifdef DEBUG
 		wire [31:0] debug_data_reg;
 		
-		reg [31:0] debug_data_signal;
+		reg [31:0]  debug_data_signal;
 		always @(posedge clk)begin
 			case (debug_addr[4:0])
 				5'b00000: debug_data_signal <= if_instruction;
@@ -167,38 +167,7 @@ module PCPU(
 				5'b01010: debug_data_signal <= {30'b0, id_should_forward_rt};
 				5'b01011: debug_data_signal <= {31'b0, id_should_stall_data_hazard};
 				5'b01100: debug_data_signal <= {31'b0, id_should_stall_control_hazard};
-				
-				/*
-				5'b01101: debug_data_signal <= {31'b0, mem_should_write_datamem};
-				
-				5'b01110: debug_data_signal <= {28'b0, id_should_ALUcontrol};
-				5'b01111: debug_data_signal <= {28'b0, exe_should_ALUcontrol};
-				
-				5'b10000: debug_data_signal <= {31'b0, id_should_shamt_or_A};
-				5'b10001: debug_data_signal <= {31'b0, exe_should_shamt_or_A};
-				
-				5'b10010: debug_data_signal <= {31'b0, id_should_imm_extend_or_B};
-				5'b10011: debug_data_signal <= {31'b0, exe_should_imm_extend_or_B};
-				
-				5'b10100: debug_data_signal <= {30'b0, id_should_rt_or_rd_or_31};
-				5'b10101: debug_data_signal <= {31'b0, id_should_sign_or_zero_extend_immediate};
-				5'b10110: debug_data_signal <= {30'b0, id_should_j_or_branch_or_jr};
-				5'b10111: debug_data_signal <= {31'b0, id_should_jal};
-				
-				5'b11000: debug_data_signal <= {31'b0, id_should_not_PC_plus_4};
-				
-				// datapath
-				5'b11001: debug_data_signal <= id_rs_or_PC_plus_4;
-				5'b11010: debug_data_signal <= id_rt_or_0;
-				5'b11011: debug_data_signal <= {27'b0,id_rt_or_rd_or_31};
-				
-				5'b11100: debug_data_signal <= exe_imm_lui;
-				5'b11101: debug_data_signal <= exe_ALUout;
-				
-				5'b11110: debug_data_signal <= wb_write_back_address;
-				5'b11111: debug_data_signal <= wb_write_back_data;
-				*/
-				
+
 				default: debug_data_signal <= 32'hFFFF_FFFF;
 			endcase
 		end
@@ -232,7 +201,7 @@ module PCPU(
 					 .addr({2'b0, if_PC[31:2]}),
 					 .dout(rom_instruction[31:0]));
 							  
-	assign if_PC_next = id_should_not_PC_plus_4 ? if_PC_plus_4[31:0] : id_j_or_branch_or_jr_address[31:0];
+	assign if_PC_next = (id_should_not_PC_plus_4 == 1'b0) ? if_PC_plus_4[31:0] : id_j_or_branch_or_jr_address[31:0];
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IF-ID register
@@ -327,19 +296,24 @@ module PCPU(
 	assign id_rt_or_0         = id_should_jal ? 32'b0 : id_rt_mux;
 	
 	assign id_j_or_branch_or_jr_address = (id_should_j_or_branch_or_jr == 2'b00) ? 32'b0 :
-										  (id_should_j_or_branch_or_jr == 2'b01) ? id_j_type_address :
-										  (id_should_j_or_branch_or_jr == 2'b10) ? id_branch_address :
-										  id_rs_data ;
+													  (id_should_j_or_branch_or_jr == 2'b01) ? id_j_type_address :
+										           (id_should_j_or_branch_or_jr == 2'b10) ? id_branch_address :
+										            id_rs_data ;
 
 	assign id_rt_or_rd_or_31 = (id_should_rt_or_rd_or_31 == 2'b00) ? id_rt :
-							   (id_should_rt_or_rd_or_31 == 2'b01) ? id_rd :
-							   (id_should_rt_or_rd_or_31 == 2'b10) ? 5'b11111 :
-							   5'b00000 ;
+									   (id_should_rt_or_rd_or_31 == 2'b01) ? id_rd :
+									   (id_should_rt_or_rd_or_31 == 2'b10) ? 5'b11111 :
+										 5'b00000 ;
 
-	assign id_mux_rt_exeAluout_memAluout_memDatamem = (id_should_forward_rt == 2'b00) ? id_rt_data :
-													  (id_should_forward_rt == 2'b01) ? exe_ALUout :
-													  (id_should_forward_rt == 2'b10) ? mem_ALUout :
-													  mem_datamem_out_miobus_out ;
+	assign id_rs_mux = (id_should_forward_rs == 2'b00) ? id_rs_data :
+							 (id_should_forward_rs == 2'b01) ? exe_ALUout :
+							 (id_should_forward_rs == 2'b10) ? mem_ALUout :
+							  mem_datamem_out_miobus_out; 
+
+	assign id_rt_mux = (id_should_forward_rt == 2'b00) ? id_rt_data :
+							 (id_should_forward_rt == 2'b01) ? exe_ALUout :
+							 (id_should_forward_rt == 2'b10) ? mem_ALUout :
+							  mem_datamem_out_miobus_out;
 	
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ID-EXE register
@@ -399,11 +373,11 @@ module PCPU(
 	assign exe_is_NOP = (exe_instruction == 32'b0) ? 1'b1 : 1'b0;
 	
 	alu  ALU (.A(exe_ALU_input_A[31:0]), 
-			 .ALU_Ctr(exe_should_ALUcontrol[3:0]), 
-			 .B(exe_ALU_input_B[31:0]), 
-			 .overflow(exe_overflow), 
-			 .res(exe_ALUout[31:0]), 
-			 .zero(exe_zero));
+				 .ALU_Ctr(exe_should_ALUcontrol[3:0]), 
+				 .B(exe_ALU_input_B[31:0]), 
+				 .overflow(exe_overflow), 
+				 .res(exe_ALUout[31:0]), 
+				 .zero(exe_zero));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EXE-MEM register
@@ -491,8 +465,8 @@ module PCPU(
 
 	assign wb_write_back_address = wb_rt_or_rd_or_31;
 	
-	assign wb_write_back_data = (wb_should_ALUout_or_datamem_or_lui == 2'b00) ? wb_ALUout[31:0] :
-								(wb_should_ALUout_or_datamem_or_lui == 2'b01) ? wb_datamem_out[31:0] :
+	assign wb_write_back_data = (wb_should_ALUout_or_datamem_or_lui == 2'b00) ? wb_ALUout :
+								(wb_should_ALUout_or_datamem_or_lui == 2'b01) ? wb_datamem_out :
 								(wb_should_ALUout_or_datamem_or_lui == 2'b10) ? wb_imm_lui :
 								wb_imm_lui ;
 		

@@ -33,58 +33,32 @@ module alu(input [31:0]A,
    wire [31:0] xor32_out;
    wire [31:0] nor32_out;
    wire [31:0] srl32_out;
-   wire [31:0] sll32_out;
-   wire [31:0] slt32_out;
-   wire Co;
-   wire Coo;
+	wire [31:0] sll32_out;
+	wire [31:0] slt32_out;
+	wire bbt;
    
-   and32  alu_and32 (.A(A[31:0]), .B(B[31:0]), .res(and32_out[31:0]));
-
-   or32   alu_or32  (.A(A[31:0]), .B(B[31:0]), .res(or32_out[31:0]));
-						
-   ABC32  alu_abc32 (.A(A[31:0]),  .B(B[31:0]), .sub(ALU_Ctr[2]), .Co(Co), .S(ABC32_out[31:0]));
-									 
-   xor32  alu_xor32 (.A(A[31:0]), .B(B[31:0]), .res(xor32_out[31:0]));
-						  
-   nor32  alu_nor32 (.A(A[31:0]), .B(B[31:0]), .res(nor32_out[31:0]));
-			
-   srl32  alu_srl32 (.A(A[31:0]), .B(B[31:0]), .res(srl32_out[31:0]));
-						  
-   sll32  alu_sll32 (.A(A[31:0]), .B(B[31:0]), .res(sll32_out[31:0]));	
-						  
-   slt32  alu_slt32 (.a(A[31:0]), .b(B[31:0]), .flag(slt32_out[31:0]));
+	assign and32_out =   A[31:0] & B[31:0];
+	assign or32_out  =   A[31:0] | B[31:0];
+	assign xor32_out =   A[31:0] ^ B[31:0];
+	assign nor32_out = ~(A[31:0] | B[31:0]);
+	assign srl32_out = 	B[31:0] >> A[31:0];
+	assign sll32_out = 	B[31:0] << A[31:0];
+	assign slt32_out =  (A[31:0] < B[31:0])  ? 32'b1 : 32'b0;
+	assign ABC32_out =  (ALU_Ctr[2] == 1'b1) ? (A[31:0] + (~B[31:0] + 32'b1)) 
+													     : (A[31:0] + B[31:0]);
+	assign zero      = ~(|A[31:0]);
 	
-   or_bit_32  alu_or_bit_32 (.A(res[31:0]), .o(zero));
-					
+	assign bbt       =  (ALU_Ctr[2:0] == 3'b010)? B[31]:((ALU_Ctr[2:0] == 3'b110 || ALU_Ctr[2:0] == 3'b111)? ~B[31] : ~A[31]);
+	assign overflow  =  (A[31] == bbt && A[31] != ABC32_out[31])? 1 :0;
 
-   overflow_judge  alu_overflow (.alu_ctr(ALU_Ctr[2:0]), 
-                                .at(A[31]), 
-                                .bt(B[31]), 
-                                .rt(ABC32_out[31]), 
-                                .res(overflow));
-										  
-   XOR2  alu_xor2 (.I0(overflow), 
-                  .I1(Co), 
-                  .O(Coo));
-
-
-   MUX16T1_32  alu_MUX16T1_32 (.I0(and32_out[31:0]), 
-                            .I1(or32_out[31:0]), 
-                            .I2(ABC32_out[31:0]), 
-                            .I3(xor32_out[31:0]), 
-                            .I4(nor32_out[31:0]), 
-                            .I5(srl32_out[31:0]), 
-                            .I6(ABC32_out[31:0]), 
-                            .I7(slt32_out[31:0]), 
-							.I8(sll32_out[31:0]),
-							.I9(32'b0),
-							.I10(32'b0),
-							.I11(32'b0),
-							.I12(32'b0),
-							.I13(32'b0),
-							.I14(32'b0),
-							.I15(32'b0),
-                            .s(ALU_Ctr[3:0]), 
-                            .o(res[31:0]));
+	assign res = (ALU_Ctr == 4'b0000) ? and32_out :
+					 (ALU_Ctr == 4'b0001) ? or32_out  :
+					 (ALU_Ctr == 4'b0010) ? ABC32_out :
+					 (ALU_Ctr == 4'b0011) ? xor32_out :
+					 (ALU_Ctr == 4'b0100) ? nor32_out :
+					 (ALU_Ctr == 4'b0101) ? srl32_out :
+					 (ALU_Ctr == 4'b0110) ? ABC32_out :
+					 (ALU_Ctr == 4'b0111) ? slt32_out :
+					 (ALU_Ctr == 4'b1000) ? sll32_out : 32'b0 ;
 					
 endmodule
