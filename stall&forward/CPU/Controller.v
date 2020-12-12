@@ -140,7 +140,8 @@ module Controller(
 							? `ALU_NOR : fun == `SLT_FUN
 							? `ALU_SLT : fun == `SLL_FUN
 							? `ALU_SLL : fun == `SRL_FUN
-							? `ALU_SRL : `ALU_DEFAULT): opcode == `ADDI_OPCODE
+							? `ALU_SRL : fun == `JR_FUN
+                            ? `ALU_DEFAULT): opcode == `ADDI_OPCODE
 																 ? `ALU_ADD : opcode == `ANDI_OPCODE
 																 ? `ALU_AND : opcode == `ORI_OPCODE
 																 ? `ALU_OR  : opcode == `XORI_OPCODE
@@ -150,7 +151,7 @@ module Controller(
 																 ? `ALU_ADD : opcode == `BEQ_OPCODE
 																 ? `ALU_SUB : opcode == `BNE_OPCODE
 																 ? `ALU_SUB : opcode == `SLTI_OPCODE
-																 ? `ALU_SLT : (is_J || is_JR)
+																 ? `ALU_SLT : (is_J s)
 																				  ? `ALU_AND : `ALU_DEFAULT
 	);
 	
