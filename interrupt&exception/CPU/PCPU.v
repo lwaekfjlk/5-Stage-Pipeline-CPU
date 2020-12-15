@@ -3,15 +3,15 @@
 `define DATA_MEM_LIMIT 32
 
 module PCPU(
-         `ifdef DEBUG
+            `ifdef DEBUG
 			input wire [5:0] debug_addr,
 			output wire [31:0] debug_data,
 			`endif
-         input wire clk, 
+            input wire clk,
 			input wire clk_cpu,
-         input wire rst,
-			input wire interrupt_priority_one,
-			input wire interrupt_priority_two
+            input wire rst,
+			input wire interrupt_one,
+			input wire interrupt_two
 			);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -19,7 +19,7 @@ module PCPU(
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // PC register
-	reg [31:0] if_PC = 0;
+	reg [31:0]  if_PC = 0;
 	
 // IF stage
 	wire [31:0] if_PC_plus_4;
@@ -36,21 +36,21 @@ module PCPU(
 	
 // ID stage
 	// controller wire (from up to down)
-	wire 			id_should_write_register;
+	wire 	    id_should_write_register;
 	wire [1:0]	id_should_ALUout_or_datamem_or_lui;
 	
-	wire 			id_should_write_datamem;
+	wire 		id_should_write_datamem;
 			
 	wire [3:0]	id_should_ALUcontrol;
-	wire 			id_should__shamt_or_A;
-	wire 			id_should_imm_extend_or_B;
+	wire 		id_should__shamt_or_A;
+	wire 		id_should_imm_extend_or_B;
 	
-	wire 			id_whether_rs_equal_rt;
+	wire 		id_whether_rs_equal_rt;
 	
 	wire [1:0]	id_should_rt_or_rd_or_31;
-	wire 			id_should_sign_or_zero_extend_immediate;
+	wire 		id_should_sign_or_zero_extend_immediate;
 	wire [1:0]	id_should_j_or_branch_or_jr;
-	wire 			id_should_jal;
+	wire 		id_should_jal;
 	
 	wire id_should_not_PC_plus_4;
 	wire id_should_stall_data_hazard;
@@ -63,8 +63,8 @@ module PCPU(
 	wire [1:0] id_should_forward_rt;
 	
 	// datapath wire
-   wire [4:0] id_rs;
-   wire [4:0] id_rt;
+    wire [4:0] id_rs;
+    wire [4:0] id_rt;
 	wire [4:0] id_rd;
 	wire [4:0] id_shamt;
 	
@@ -85,20 +85,20 @@ module PCPU(
 	
 	wire [4 :0] id_rt_or_rd_or_31;
 	
-	wire 		  id_is_NOP;
+	wire 		id_is_NOP;
 	
-	wire       id_should_undefined_exception_or_not;
+	wire        id_should_undefined_exception_or_not;
 	
-	wire       id_should_eret_or_not;
-	wire       id_should_mtc_or_not;
-	wire       id_should_mfc_or_not;
+	wire        id_should_eret_or_not;
+	wire        id_should_mtc_or_not;
+	wire        id_should_mfc_or_not;
 	
-	wire       id_stall;
+	wire        id_stall;
 
 // ID-EXE register
 	reg [31:0] exe_PC = 0;
-	reg 		  exe_stall = 0;
-	reg 	     exe_should_write_register = 0;
+	reg 	   exe_stall = 0;
+	reg 	   exe_should_write_register = 0;
 	reg [1 :0] exe_should_ALUout_or_datamem_or_lui = 0;
 	reg        exe_should_write_datamem = 0;
 	reg [3 :0] exe_should_ALUcontrol = 0;
@@ -116,26 +116,26 @@ module PCPU(
 	reg [4 :0] exe_rd = 0;
 	reg        exe_should_mtc_or_not = 0;
 	reg        exe_should_mfc_or_not = 0;
-	reg		  exe_should_eret_or_not = 0;
+	reg		   exe_should_eret_or_not = 0;
 	
 	
 // EXE stage
 	wire [31:0] exe_ALU_input_A;
 	wire [31:0] exe_ALU_input_B;
 	
-	wire 		   exe_zero;
-	wire		   exe_overflow;
+	wire 		exe_zero;
+	wire		exe_overflow;
 	wire [31:0] exe_ALUout;
 	
 	wire        exe_is_NOP;
 	
 	wire        exe_should_overflow_exception_or_not;
-	wire 			exe_should_mem_outofrange_exception_or_not;
+	wire 	    exe_should_mem_outofrange_exception_or_not;
 	
 // EXE-MEM register
 	reg [31:0]  mem_PC = 0;
 	reg         mem_stall = 0;
-	reg 		   mem_should_write_register = 0;
+	reg 		mem_should_write_register = 0;
 	reg [1:0]   mem_should_ALUout_or_datamem_or_lui = 0;
 	reg			mem_should_write_datamem = 0;
 	
@@ -147,7 +147,7 @@ module PCPU(
 	
 	reg         mem_should_undefined_exception_or_not = 0;
 	reg         mem_should_overflow_exception_or_not = 0;
-	reg  			mem_should_mem_outofrange_exception_or_not = 0;
+	reg  	    mem_should_mem_outofrange_exception_or_not = 0;
 	
 	reg [4 :0]  mem_rd = 0;
 	reg         mem_should_mtc_or_not = 0;
@@ -165,6 +165,7 @@ module PCPU(
 	 
 // MEM-WB register
 	reg [31:0]  wb_PC = 0;
+	reg         wb_stall = 0;
 	reg			wb_should_write_register = 0;
 	reg [1 :0]	wb_should_ALUout_or_datamem_or_lui = 0;
 	reg [31:0] 	wb_datamem_out = 0;
@@ -175,18 +176,16 @@ module PCPU(
 	
 	reg         wb_should_undefined_exception_or_not = 0;
 	reg         wb_should_overflow_exception_or_not = 0;
-	reg  			wb_should_mem_outofrange_exception_or_not = 0;
+	reg  		wb_should_mem_outofrange_exception_or_not = 0;
 	
 	reg [4 :0]  wb_rd = 0;
 
 	reg         wb_should_mtc_or_not = 0;
 	reg         wb_should_mfc_or_not = 0;
-	reg		   wb_should_eret_or_not = 0;
+	reg		    wb_should_eret_or_not = 0;
 	
 // WB stage
 	// CP0 wire
-	//wire [31:0] if_CP0_PC;
-	//wire        if_CP0_EPC_or_PC_plus_4;
 	wire [31:0] wb_mfc_CPRrd_data;
 	wire [31:0] wb_epc_data;
 	wire [31:0] wb_status_data;
@@ -197,7 +196,6 @@ module PCPU(
 	wire        wb_exception_or_not_two;
 	
 	// interrupt
-	wire        interrupt_signal;
 	wire        wb_interrupt_or_not;
 
 	wire [31:0] wb_write_back_address;
@@ -206,8 +204,6 @@ module PCPU(
 	wire [31:0] wb_ehb_base_address;
 	wire [31:0] wb_gohandle_address;
 	wire        wb_gohandle_or_not;
-	wire [1 :0] wb_current_priority;
-	wire [1 :0] wb_prev_priority;
 	
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -216,7 +212,6 @@ module PCPU(
 	
 	`ifdef DEBUG
 		wire [31:0] debug_data_reg;
-		
 		reg [31:0]  debug_data_signal;
 		always @(posedge clk)begin
 			case (debug_addr[4:0])
@@ -227,14 +222,10 @@ module PCPU(
 				5'b00100: debug_data_signal <= wb_instruction;
 				5'b00101: debug_data_signal <= if_PC;
 				5'b00110: debug_data_signal <= wb_PC;
-				
 				5'b00111: debug_data_signal <= wb_epc_data;
 				5'b01000: debug_data_signal <= wb_cause_data;
 				5'b01001: debug_data_signal <= wb_status_data;
 				
-				5'b01010: debug_data_signal <= {30'b0,wb_current_priority};
-				5'b01011: debug_data_signal <= {30'b0,wb_prev_priority};
-
 				default: debug_data_signal <= 32'hFFFF_FFFF;
 			endcase
 		end
@@ -253,7 +244,6 @@ module PCPU(
 		else if (wb_gohandle_or_not == 1'b1) if_PC <= wb_gohandle_address;
 		else if (id_should_stall_data_hazard) if_PC <= if_PC;
 			  else if_PC <= if_PC_next;
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IF Stage
@@ -276,8 +266,6 @@ module PCPU(
 							  (wb_should_eret_or_not == 1'b1)  ? wb_epc_data[31:0] :
 							  (id_should_not_PC_plus_4 == 1'b1) ? id_j_or_branch_or_jr_address[31:0] : if_PC_plus_4[31:0];
 
-
-	//assign if_EPC_or_PC_next = (wb_CP0_EPC);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IF-ID register
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -380,19 +368,19 @@ module PCPU(
 	assign id_whether_rs_equal_rt = (id_rs_forward_mux == id_rt_forward_or_CPRrd_mux) ? 1'b1 : 1'b0;
 	
 	assign id_j_or_branch_or_jr_address = (id_should_j_or_branch_or_jr == 2'b00) ? 32'b0 :
-													  (id_should_j_or_branch_or_jr == 2'b01) ? id_j_type_address :
-										           (id_should_j_or_branch_or_jr == 2'b10) ? id_branch_address :
-										            id_rs_data ;
+                                          (id_should_j_or_branch_or_jr == 2'b01) ? id_j_type_address :
+                                          (id_should_j_or_branch_or_jr == 2'b10) ? id_branch_address :
+                                           id_rs_data ;
 
 	assign id_rs_forward_mux = (id_should_forward_rs == 2'b00) ? id_rs_data :
-										(id_should_forward_rs == 2'b01) ? ((id_should_exe_ALUout_or_exe_imm_lui == 1'b0) ? exe_ALUout : {exe_instruction[15:0],16'b0}) :
-										(id_should_forward_rs == 2'b10) ? ((id_should_mem_ALUout_or_mem_imm_lui == 1'b0) ? mem_ALUout : {mem_instruction[15:0],16'b0}) :
-										mem_datamem_out_miobus_out; 
+                               (id_should_forward_rs == 2'b01) ? ((id_should_exe_ALUout_or_exe_imm_lui == 1'b0) ? exe_ALUout : {exe_instruction[15:0],16'b0}) :
+                               (id_should_forward_rs == 2'b10) ? ((id_should_mem_ALUout_or_mem_imm_lui == 1'b0) ? mem_ALUout : {mem_instruction[15:0],16'b0}) :
+                                mem_datamem_out_miobus_out;
 
 	assign id_rt_forward_mux = (id_should_forward_rt == 2'b00) ? id_rt_data :
-										(id_should_forward_rt == 2'b01) ? ((id_should_exe_ALUout_or_exe_imm_lui == 1'b0) ? exe_ALUout : {exe_instruction[15:0],16'b0}) :
-										(id_should_forward_rt == 2'b10) ? ((id_should_mem_ALUout_or_mem_imm_lui == 1'b0) ? mem_ALUout : {mem_instruction[15:0],16'b0}) :
-										 mem_datamem_out_miobus_out;
+                               (id_should_forward_rt == 2'b01) ? ((id_should_exe_ALUout_or_exe_imm_lui == 1'b0) ? exe_ALUout : {exe_instruction[15:0],16'b0}) :
+                               (id_should_forward_rt == 2'b10) ? ((id_should_mem_ALUout_or_mem_imm_lui == 1'b0) ? mem_ALUout : {mem_instruction[15:0],16'b0}) :
+                                mem_datamem_out_miobus_out;
 	
 	assign id_rt_forward_or_CPRrd_mux =  id_rt_forward_mux; 
 	
@@ -400,10 +388,10 @@ module PCPU(
 	
 	assign id_rt_or_0         = (id_should_jal==1'b1) ? 32'b0 : id_rt_forward_or_CPRrd_mux;
 	
-	assign id_rt_or_rd_or_31 = (id_should_rt_or_rd_or_31 == 2'b00) ? id_rt :
-									   (id_should_rt_or_rd_or_31 == 2'b01) ? id_rd :
-									   (id_should_rt_or_rd_or_31 == 2'b10) ? 5'b11111 :
-										 5'b00000 ;
+	assign id_rt_or_rd_or_31  = (id_should_rt_or_rd_or_31 == 2'b00) ? id_rt :
+                                (id_should_rt_or_rd_or_31 == 2'b01) ? id_rd :
+                                (id_should_rt_or_rd_or_31 == 2'b10) ? 5'b11111 :
+                                 5'b00000 ;
 										 
 	assign id_stall = id_should_stall_control_hazard || id_should_stall_data_hazard;
 	
@@ -482,14 +470,14 @@ module PCPU(
 	assign exe_is_NOP = (exe_instruction == 32'b0) ? 1'b1 : 1'b0;
 	
 	alu  ALU (.A(exe_ALU_input_A[31:0]), 
-				 .ALU_Ctr(exe_should_ALUcontrol[3:0]), 
-				 .B(exe_ALU_input_B[31:0]), 
-				 .overflow(exe_should_overflow_exception_or_not), 
-				 .res(exe_ALUout[31:0]), 
-				 .zero(exe_zero));
+              .ALU_Ctr(exe_should_ALUcontrol[3:0]),
+              .B(exe_ALU_input_B[31:0]),
+              .overflow(exe_should_overflow_exception_or_not),
+              .res(exe_ALUout[31:0]),
+              .zero(exe_zero));
 	
 	assign exe_should_mem_outofrange_exception_or_not = (id_should_check_possible_mem_outofrange_exception == 1'b0) ? 
-																		  1'b0 : (exe_ALUout[31:0] > `DATA_MEM_LIMIT) ? 1'b1 : 1'b0;
+                                                         1'b0 : (exe_ALUout[31:0] > `DATA_MEM_LIMIT) ? 1'b1 : 1'b0;
 	
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -563,14 +551,11 @@ module PCPU(
 		.dout(mem_datamem_out[31:0])
 		);
 	
-	wire   		mem_should_write_datamem_without_exception = (mem_should_mem_outofrange_exception_or_not == 1'b0) ?
-																			    mem_should_write_datamem : 1'b0;
+	wire   		mem_should_write_datamem_without_exception = (mem_should_mem_outofrange_exception_or_not == 1'b0) ? mem_should_write_datamem : 1'b0;
 	
-	wire [31:0] mem_ALUout_without_exception = (mem_should_mem_outofrange_exception_or_not == 1'b0) ?
-															  mem_ALUout : 32'b0;
+	wire [31:0] mem_ALUout_without_exception = (mem_should_mem_outofrange_exception_or_not == 1'b0) ? mem_ALUout : 32'b0;
 	
-	wire [31:0] mem_datamem_out_without_exception = (mem_should_mem_outofrange_exception_or_not == 1'b0) ?
-															       mem_datamem_out : 32'b0;
+	wire [31:0] mem_datamem_out_without_exception = (mem_should_mem_outofrange_exception_or_not == 1'b0) ? mem_datamem_out : 32'b0;
 	
 	assign mem_datamem_out_miobus_out = mem_datamem_out;
 
@@ -583,6 +568,7 @@ module PCPU(
 	always @(posedge clk_cpu or posedge rst) begin
 		if (rst || wb_gohandle_or_not) begin
 			wb_PC <= (wb_gohandle_or_not == 1'b1) ? wb_PC : 0;
+			wb_stall <= 0;
 			wb_should_write_register <= 0;
 			wb_should_ALUout_or_datamem_or_lui <= 0;
 			
@@ -603,6 +589,7 @@ module PCPU(
 			wb_should_eret_or_not <= 0;
 		end else begin
 			wb_PC <= mem_PC;
+			wb_stall <= mem_stall;
 			wb_should_write_register <= mem_should_write_register;
 			wb_should_ALUout_or_datamem_or_lui <= mem_should_ALUout_or_datamem_or_lui;
 			
@@ -629,23 +616,22 @@ module PCPU(
 // WB stage
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
-	CP0 CP0(//`ifdef DEBUG
-			  //.debug_addr(debug_addr[4:0]),
-			  //.debug_data_reg(debug_data_reg),
-			  //`endif
+	CP0 CP0(
 			  .clk(clk),
 			  .clk_cpu(clk_cpu),
 			  .rst(rst),
 			  
+			  .id_PC(id_PC),
 			  .exe_PC(exe_PC),
 			  .mem_PC(mem_PC),
-			  //.wb_PC(wb_PC),
+			  .wb_PC(wb_PC),
 			  .mem_stall(mem_stall),
-			  .interrupt_or_not_one(interrupt_priority_one),
-			  .interrupt_or_not_two(interrupt_priority_two),
-			  .exception_or_not(wb_should_undefined_exception_or_not   ||
-								     wb_should_overflow_exception_or_not    ||
-									  wb_should_mem_outofrange_exception_or_not),
+			  
+			  .interrupt_or_not_one(interrupt_one),
+			  .interrupt_or_not_two(interrupt_two),
+			  .undefined_exception_or_not(wb_should_undefined_exception_or_not),
+			  .overflow_exception_or_not(wb_should_overflow_exception_or_not),
+			  .mem_outofrange_exception_or_not(wb_should_mem_outofrange_exception_or_not),
 			  .should_eret_or_not(wb_should_eret_or_not),
 			  
 			  .mtc_CPRrd_address(wb_rd),
@@ -659,25 +645,22 @@ module PCPU(
 			  .ebase_data(wb_ehb_base_address),
 			  .status_data(wb_status_data),
 			  .cause_data(wb_cause_data),
+			  
 			  .gohandle_or_not(wb_gohandle_or_not),
 			  .gohandle_exception_or_not(wb_exception_or_not),
 			  .gohandle_interrupt_or_not_one(wb_interrupt_or_not_one),
-			  .gohandle_interrupt_or_not_two(wb_interrupt_or_not_two),
-			  
-			  .current_priority_wire(wb_current_priority),
-			  .prev_priority_wire(wb_prev_priority)
+			  .gohandle_interrupt_or_not_two(wb_interrupt_or_not_two)
 			  );
 
 	assign wb_write_back_address = wb_rt_or_rd_or_31;
 	
 	assign wb_write_back_data = (wb_should_mfc_or_not == 1'b1) ? wb_mfc_CPRrd_data :
-										 ((wb_should_ALUout_or_datamem_or_lui == 2'b00) ? wb_ALUout :
-										  (wb_should_ALUout_or_datamem_or_lui == 2'b01) ? wb_datamem_out :
-										  (wb_should_ALUout_or_datamem_or_lui == 2'b10) ? {wb_instruction[15:0],16'b0} :
-										  {wb_instruction[15:0],16'b0}) ;
+                                ((wb_should_ALUout_or_datamem_or_lui == 2'b00) ? wb_ALUout :
+                                 (wb_should_ALUout_or_datamem_or_lui == 2'b01) ? wb_datamem_out :
+                                 (wb_should_ALUout_or_datamem_or_lui == 2'b10) ? {wb_instruction[15:0],16'b0} : {wb_instruction[15:0],16'b0}) ;
 		
 	assign wb_gohandle_address = (wb_interrupt_or_not_one == 1'b1) 	? 32'h80 + wb_ehb_base_address :
-										  (wb_interrupt_or_not_two == 1'b1) 	? 32'h80 + wb_ehb_base_address :	
-										  (wb_exception_or_not     == 1'b1) 	? 32'h00 + wb_ehb_base_address : 32'h00 + wb_ehb_base_address;
+                                 (wb_interrupt_or_not_two == 1'b1) 	? 32'h100 + wb_ehb_base_address :
+                                 (wb_exception_or_not     == 1'b1) 	? 32'h00 + wb_ehb_base_address : 32'h00 + wb_ehb_base_address;
 
 endmodule

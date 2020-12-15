@@ -3,11 +3,12 @@
 module inst_rom (
 	input wire rst,
 	input wire clk,
+	input wire gohandle_or_not,
 	input wire [31:0] addr,
 	output reg [31:0] dout
 	);
 	
-	parameter ADDR_WIDTH = 6;
+	parameter ADDR_WIDTH = 7;
 	
 	reg [31:0] data [0:(1<<ADDR_WIDTH)-1];
 	
@@ -17,7 +18,7 @@ module inst_rom (
 	
 	reg [31:0] out;
 	always @(negedge clk or posedge rst) begin
-        if (rst) begin
+        if (rst || gohandle_or_not) begin
             out <= 32'b0;
         end else begin
             out <= data[addr[ADDR_WIDTH-1:0]];

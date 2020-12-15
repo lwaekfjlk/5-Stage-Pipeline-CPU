@@ -16,6 +16,8 @@
 `define J_OPCODE 		6'b000010
 `define JAL_OPCODE 		6'b000011
 
+`define CP0_OPCODE		6'b010000
+
 `define ADD_FUN			6'b100000
 `define SUB_FUN			6'b100010
 `define AND_FUN			6'b100100
@@ -73,13 +75,25 @@ module Controller(
 		
 		output wire [1:0] should_forward_rs,
 		output wire [1:0] should_forward_rt,
-		output wire       should_rtor0_wbdatamemout
+		output wire       should_rtor0_wbdatamemout,
+		
+		output wire       should_eret_or_not,
+		output wire       should_mfc_or_not,
+		output wire       should_mtc_or_not,
+		
+		output wire       should_undefined_exception_or_not,
+		output wire       should_check_possible_mem_outofrange_exception,
+		
+		output wire       should_exe_ALUout_or_exe_imm_lui,
+		output wire       should_mem_ALUout_or_mem_imm_lui
     );
 
 	wire [5:0] opcode   = instruction[31:26];
 	wire [5:0] fun      = instruction[5:0];
 	wire [4:0] rs       = instruction[25:21];
 	wire [4:0] rt       = instruction[20:16];
+	
+	wire       CO       = instruction[25];
 	
 	wire is_R_type		= opcode == `R_TYPE_OPCODE;
 	wire is_I_type      = opcode == `ADDI_OPCODE || opcode == `ANDI_OPCODE ||
@@ -98,6 +112,10 @@ module Controller(
 	wire is_LW          = opcode == `LW_OPCODE;
 	wire is_SW          = opcode == `SW_OPCODE;
 	wire is_J			= opcode == `J_OPCODE;
+	wire is_MFC         = opcode == `CP0_OPCODE && rs == 5'b00000;
+	wire is_MTC         = opcode == `CP0_OPCODE && rs == 5'b00100;
+	wire is_ERET        = opcode == `CP0_OPCODE && CO == 1'b1;
+	
 	
 	wire exe_is_LW      = exe_instruction[31:26] == `LW_OPCODE;
 	wire exe_is_SW      = exe_instruction[31:26] == `SW_OPCODE;
@@ -108,6 +126,7 @@ module Controller(
 	
 	
 	assign should_write_register = 
+	(is_MFC)   || 
 	(is_R_type && 
 	(fun == `ADD_FUN ||
 	 fun == `SUB_FUN ||
@@ -118,7 +137,7 @@ module Controller(
 	 fun == `SLT_FUN ||
 	 fun == `SLL_FUN ||
 	 fun == `SRL_FUN))
-	|| (should_rt_or_rd_or_31 == 0 && rt != 0 && !is_BRANCH && !is_SW) // I-type must exclude bne/beq and sw
+	|| (should_rt_or_rd_or_31 == 0 && rt != 0 && !is_BRANCH && !is_SW && !is_MFC && !is_MTC && !is_ERET) // I-type must exclude bne/beq and sw
 	|| (is_JAL);
 	
 	assign should_ALUout_or_datamem_or_lui = 
@@ -129,8 +148,9 @@ module Controller(
 	assign should_write_datamem = opcode ==`SW_OPCODE;
 	
 	assign should_ALUcontrol = 
-	(  is_JAL 
-		? `ALU_ADD : is_R_type 
+	((is_MTC || is_MFC)
+      ? `ALU_AND : is_JAL
+      ? `ALU_ADD : is_R_type
 						 ? (fun == `ADD_FUN
 							? `ALU_ADD : fun == `SUB_FUN
 							? `ALU_SUB : fun == `AND_FUN
@@ -141,7 +161,7 @@ module Controller(
 							? `ALU_SLT : fun == `SLL_FUN
 							? `ALU_SLL : fun == `SRL_FUN
 							? `ALU_SRL : fun == `JR_FUN
-                            ? `ALU_DEFAULT): opcode == `ADDI_OPCODE
+							? `ALU_AND : `ALU_DEFAULT): opcode == `ADDI_OPCODE
 																 ? `ALU_ADD : opcode == `ANDI_OPCODE
 																 ? `ALU_AND : opcode == `ORI_OPCODE
 																 ? `ALU_OR  : opcode == `XORI_OPCODE
@@ -151,37 +171,37 @@ module Controller(
 																 ? `ALU_ADD : opcode == `BEQ_OPCODE
 																 ? `ALU_SUB : opcode == `BNE_OPCODE
 																 ? `ALU_SUB : opcode == `SLTI_OPCODE
-																 ? `ALU_SLT : (is_J s)
-                                                                            ? `ALU_AND : `ALU_DEFAULT
+																 ? `ALU_SLT : (is_J || is_ERET)
+																				  ? `ALU_AND : `ALU_DEFAULT
 	);
 	
 	assign should_shamt_or_A = (!is_JAL && (is_R_type && (fun == `SLL_FUN || fun == `SRL_FUN)));
 	
 	assign should_imm_extend_or_B = 
 	(  !is_JAL && (opcode == `ADDI_OPCODE ||
-                   opcode == `ANDI_OPCODE ||
-                   opcode == `ORI_OPCODE  ||
-                   opcode == `XORI_OPCODE ||
-                   opcode == `LUI_OPCODE  ||
-                   opcode == `LW_OPCODE   ||
-                   opcode == `SW_OPCODE   ||
-                   opcode == `BEQ_OPCODE  ||
-                   opcode == `BNE_OPCODE  ||
-                   opcode == `SLTI_OPCODE ));
+						opcode == `ANDI_OPCODE ||
+						opcode == `ORI_OPCODE  ||
+						opcode == `XORI_OPCODE ||
+						opcode == `LUI_OPCODE  ||
+						opcode == `LW_OPCODE   ||
+						opcode == `SW_OPCODE   ||
+						opcode == `BEQ_OPCODE  ||
+						opcode == `BNE_OPCODE  ||
+						opcode == `SLTI_OPCODE ));
 	
 	assign should_rt_or_rd_or_31 = 
-	(  is_I_type 
+	( (is_I_type || is_MFC) 
 		? 2'b00 : is_R_type 
 					 ? 2'b01 : is_JAL
 								  ? 2'b10 : 2'b11);
 	
 	assign should_sign_or_zero_extend_immediate = 
-	(  opcode == `ADDI_OPCODE  ||
-		opcode == `BNE_OPCODE  ||
-		opcode == `BEQ_OPCODE  ||
-		opcode == `SLTI_OPCODE ||
-		opcode == `LW_OPCODE   ||
-		opcode == `SW_OPCODE   );
+	(  opcode == `ADDI_OPCODE ||
+       opcode == `BNE_OPCODE  ||
+       opcode == `BEQ_OPCODE  ||
+       opcode == `SLTI_OPCODE ||
+       opcode == `LW_OPCODE   ||
+       opcode == `SW_OPCODE   );
 	
 	assign should_j_or_branch_or_jr = 
 	(	is_J_type ? 2'b01 : (is_BRANCH) && (whether_rs_equal_rt == is_BEQ)
@@ -191,19 +211,21 @@ module Controller(
 	
 	assign should_jal = opcode == `JAL_OPCODE;
 	
-	assign should_not_PC_plus_4 = should_j_or_branch_or_jr != 2'b00;
+	assign should_not_PC_plus_4 = (should_j_or_branch_or_jr != 2'b00 || is_ERET);
 
 
 	// J-type and bne/beq control hazard
-	wire	 J_type_control_hazard = is_J_type;
-	wire   JR_control_hazard 	  = is_JR;
-	wire	 branch_control_hazard = is_BRANCH && (should_j_or_branch_or_jr == 2'b10);
+	wire   CP0_control_hazard    = is_ERET;
+	wire   J_type_control_hazard = is_J_type;
+	wire   JR_control_hazard 	 = is_JR;
+	wire   branch_control_hazard = is_BRANCH && (should_j_or_branch_or_jr == 2'b10);
 	
 	 
 	assign should_stall_control_hazard =
-							   (J_type_control_hazard ||
+							   ( J_type_control_hazard ||
 								 JR_control_hazard     ||
-								 branch_control_hazard);
+								 branch_control_hazard || 
+								 CP0_control_hazard);
 	
 	// forward part
 	
@@ -218,20 +240,49 @@ module Controller(
 	// next inst needs MEM load result
 	// we have to stall and insert a bubble inst
 	wire exe_lw_rs    = exe_should_write_register && (exe_rt_or_rd_or_31 == rs && rs != 0) && (exe_should_ALUout_or_datamem_or_lui == 2'b01);
-	wire exe_lw_rt	   = exe_should_write_register && (exe_rt_or_rd_or_31 == rt && rt != 0) && (exe_should_ALUout_or_datamem_or_lui == 2'b01);
+	wire exe_lw_rt	  = exe_should_write_register && (exe_rt_or_rd_or_31 == rt && rt != 0) && (exe_should_ALUout_or_datamem_or_lui == 2'b01);
 	
 	// next next inst needs MEM load result
 	wire mem_lw_rs    = mem_should_write_register && (mem_rt_or_rd_or_31 == rs && rs != 0) && (mem_should_ALUout_or_datamem_or_lui == 2'b01);
-	wire mem_lw_rt	   = mem_should_write_register && (mem_rt_or_rd_or_31 == rt && rt != 0) && (mem_should_ALUout_or_datamem_or_lui == 2'b01);
+	wire mem_lw_rt	  = mem_should_write_register && (mem_rt_or_rd_or_31 == rt && rt != 0) && (mem_should_ALUout_or_datamem_or_lui == 2'b01);
 	
 	assign should_stall_data_hazard = (exe_lw_rs || exe_lw_rt) && (!id_is_NOP) && (!exe_is_NOP) && (!(is_SW && exe_is_LW));
-	assign should_forward_rs = (mem_lw_rs==1)    ? 2'b11 : (
-										(mem_write_rs==1) ? 2'b10 : (
-										(exe_write_rs==1) ? 2'b01 : 2'b00));
-	assign should_forward_rt = (mem_lw_rt==1)    ? 2'b11 : ( 
-										(mem_write_rt==1) ? 2'b10 : (
-										(exe_write_rt==1) ? 2'b01 : 2'b00));
+	assign should_forward_rs = (mem_lw_rs==1)    ? 2'b11 : 
+                               (mem_write_rs==1) ? 2'b10 :
+                               (exe_write_rs==1) ? 2'b01 : 2'b00;
+	assign should_forward_rt = (mem_lw_rt==1)    ? 2'b11 : 
+                               (mem_write_rt==1) ? 2'b10 :
+                               (exe_write_rt==1) ? 2'b01 : 2'b00;
 
 	assign should_rtor0_wbdatamemout = (mem_is_SW && wb_is_LW);
-    
+	
+	
+	// exception and interruption
+	assign should_mtc_or_not  = (is_MTC == 1'b1) ? 1'b1 : 1'b0;
+	assign should_mfc_or_not  = (is_MFC == 1'b1) ? 1'b1 : 1'b0;
+	assign should_eret_or_not = (is_ERET == 1'b1) ? 1'b1 : 1'b0;
+	
+	assign should_undefined_exception_or_not = ( opcode != `R_TYPE_OPCODE 					      &&
+                                                 opcode != `ADDI_OPCODE && opcode != `ANDI_OPCODE &&
+                                                 opcode != `ORI_OPCODE  && opcode != `XORI_OPCODE &&
+                                                 opcode != `LUI_OPCODE  && opcode != `LW_OPCODE   &&
+                                                 opcode != `SW_OPCODE   && opcode != `BEQ_OPCODE  &&
+                                                 opcode != `BNE_OPCODE  && opcode != `SLTI_OPCODE &&
+                                                 opcode != `J_OPCODE    && opcode != `JAL_OPCODE  &&
+                                                 !is_ERET   && !is_MFC  && !is_MTC               )||
+                                               ( opcode == `R_TYPE_OPCODE                         &&
+                                                 fun    != `ADD_FUN     && fun    != `SUB_FUN     &&
+                                                 fun    != `AND_FUN     && fun    != `OR_FUN      &&
+                                                 fun    != `XOR_FUN     && fun    != `NOR_FUN     &&
+                                                 fun 	!= `SLT_FUN     && fun 	  != `SLL_FUN     &&
+                                                 fun    != `SRL_FUN);
+	
+	wire [5:0] exe_opcode   = exe_instruction[31:26];
+	wire [5:0] mem_opcode   = mem_instruction[31:26];
+	
+	assign should_exe_ALUout_or_exe_imm_lui = (exe_opcode == `LUI_OPCODE);
+	assign should_mem_ALUout_or_mem_imm_lui = (mem_opcode == `LUI_OPCODE);
+	assign should_check_possible_mem_outofrange_exception = (exe_opcode == `LW_OPCODE || exe_opcode == `SW_OPCODE);
+	
+
 endmodule
